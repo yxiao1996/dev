@@ -1,0 +1,10 @@
+<launch>
+    <arg name="veh" default="duckiebot0" doc="Name of vehicle. ex: megaman"/>
+	<node ns="$(arg veh)" name="ssd_node" pkg="ssd" type="ssd_node.py" output="screen">
+		<!-- Setup parameters -->
+		<param name="~pub_timestep" value="0.2"/>
+		<!-- Remapping topics -->
+		<!-- <remap from="~topic_b" to="~topic_a"/> -->
+		<!-- <remap from="~topic_b" to="ssd_node/topic_a"/> -->
+	</node>
+</launch>

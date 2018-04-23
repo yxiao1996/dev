@@ -1,0 +1,9 @@
+<launch>
+	<node ns="duckiebot0" name="new_joy_mapper_node" pkg="joy_mapper_dev" type="new_joy_mapper_node.py" output="screen">
+		<!-- Setup parameters -->
+		
+		<!-- Remapping topics -->
+		
+		<!-- <remap from="~topic_b" to="talker/topic_a"/> -->
+	</node>
+</launch>

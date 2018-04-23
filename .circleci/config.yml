@@ -1,0 +1,106 @@
+version: 2
+jobs:
+    build:
+     docker:
+        - image: andreacensi/duckietown-xenial-kinetic:18
+          environment:
+              DUCKIEFLEET_ROOT: /root/duckiefleet
+              DUCKIETOWN_ROOT: /root/project
+              DUCKIETOWN_DATA: /root/duckietown-data
+     parallelism: 1
+     steps:
+        - checkout
+
+        - run:
+            name: deps
+            command: |
+                # apt install -y python-frozendict python-ruamel.yaml
+                pip install --upgrade compmake==3.5.6 PyContracts QuickApp conftools comptests procgraph pymongo
+
+                ./misc/python_environment.py comptests
+                which comptests
+
+                ./misc/python_environment.py compmake
+
+
+                # pip install ros_node_utils
+                # pip install procgraph
+                apt install -y python-sklearn
+
+        - run:
+            name: build
+            command: |
+
+                source /opt/ros/kinetic/setup.bash
+
+                echo PWD = $PWD
+                mkdir -p $DUCKIETOWN_DATA
+                mkdir -p $DUCKIEFLEET_ROOT
+
+                export ROS_LANG_DISABLE=gennodejs:geneus:genlisp
+                make build-catkin-parallel-max
+
+
+                source environment.sh
+                # make build-machines
+
+        - run:
+            name: make continuous-integration-tests
+            command: |
+                source /opt/ros/kinetic/setup.bash
+                source $PWD/catkin_ws/devel/setup.bash
+
+
+                export HOSTNAME=$HOSTNAME
+
+
+                # git clone git@github.com:duckietown/duckiefleet-fall2017.git $DUCKIEFLEET_ROOT
+                mkdir -p $DUCKIEFLEET_ROOT
+
+                make test-download-logs
+                make test-circle
+
+# - run:
+#     name: MCDP
+#     command: |
+#         git lfs clone -b duckuments --depth 1 git@github.com:AndreaCensi/mcdp
+#         cd mcdp && python setup.py develop
+#         cd $DUCKIETOWN_ROOT && make test-documentation
+        - run:
+            name: junit
+            when: always
+            command: |
+
+                make test-comptests-collect-junit
+
+                # export artifacts=artifacts
+                # export reports=reports
+                # mkdir -p $artifacts
+                # mkdir -p $reports
+                # .circleci/collect-test-artifacts.sh $artifacts $reports
+
+
+        - run:
+             name: what the duck
+             command:
+                 "source /opt/ros/kinetic/setup.bash && source $PWD/catkin_ws/devel/setup.bash && ./what-the-duck || :"
+
+
+        - test-results-store:
+                path: out/comptests/junit
+
+        - store_artifacts:
+              path: artifacts
+              destination: artifacts
+
+        # - store_artifacts:
+        #       path: anti_instagram_annotations_test
+        #       destination: anti_instagram_annotations_test
+
+        - store_artifacts:
+              path: reports
+              destination: reports
+
+        - store_artifacts:
+              path: out
+              destination: out

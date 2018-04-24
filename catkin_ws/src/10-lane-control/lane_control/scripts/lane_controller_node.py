@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 import math
-from duckietown_msgs.msg import Twist2DStamped, LanePose
+from duckietown_msgs.msg import Twist2DStamped, LanePose, Pose2DStamped
 from geometry_msgs.msg import Pose2D
 import skfuzzy as fuzzy
 import skfuzzy.control as ctrl
@@ -18,6 +18,8 @@ class lane_controller(object):
 
         # Initialize buffers
         self.last_timestamp = 0
+        self.speed_v = 1.0
+        self.speed_omega = 1.0
 
         self.omega_bar = 0.2
         # Initialize sparse universe
@@ -146,6 +148,7 @@ class lane_controller(object):
 
         # Subscriptions
         self.sub_lane_reading = rospy.Subscriber("~lane_pose", LanePose, self.cbPose, queue_size=1)
+        self.sub_speed_factor = rospy.Subscriber("~speed", Pose2DStamped, self.cbSpeed, queue_size=1)
 
         # safe shutdown
         rospy.on_shutdown(self.custom_shutdown)
@@ -159,6 +162,11 @@ class lane_controller(object):
         rospy.set_param(param_name,value) #Write to parameter server for transparancy
         rospy.loginfo("[%s] %s = %s " %(self.node_name,param_name,value))
         return value
+
+    def cbSpeed(self, msg):
+        self.speed_v = msg.x
+        self.speed_omega = msg.y
+        print msg
 
     def setGains(self):
         v_bar = 0.5 # nominal speed, 0.5m/s
@@ -263,8 +271,8 @@ class lane_controller(object):
         # publish car command
         car_control_msg = Twist2DStamped()
         car_control_msg.header = lane_pose_msg.header
-        car_control_msg.v = ctl_v*0.5
-        car_control_msg.omega = ctl_omega*3
+        car_control_msg.v = ctl_v*0.7*self.speed_v
+        car_control_msg.omega = ctl_omega*2.5*self.speed_omega
         self.publishCmd(car_control_msg)
 
         # Update timestamp buffer

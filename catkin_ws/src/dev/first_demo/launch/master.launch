@@ -4,6 +4,10 @@
     <arg name="local" default="false" doc="true for running on laptop. false for running on vehicle."/>
     <arg name="config" default="baseline" doc="Specify a config."/>
     <arg name="param_file_name" default="default"/>
+    <arg name="line_detector_param_file_name" default="$(arg param_file_name)"/>
+    <arg name="fsm_file_name" default="default" />
+    <arg name="visualization" default="false" />
+	<arg name="verbose" default="false" />
 	
 	<!-- start switch args -->
 	<arg name="camera" default="true"/>
@@ -27,7 +31,7 @@
 	<arg name="/lane_following/lane_controller" default="true"/>
 
 	<arg name="fsm" default="true"/>
-	<arg name="planner" default="false"/>
+	<arg name="planner" default="true"/>
 
 	<!-- Start finite state machine -->
     <group if="$(arg fsm)">    
@@ -39,7 +43,7 @@
     <group if="$(arg planner)"> 
         <node ns="$(arg veh)" name="task_planner_node" pkg="task_planner" type="task_planner_node.py" output="screen">
             <rosparam command="load" file="$(find task_planner)/config/$(arg param_file_name).yaml"/>
-            <remap from="$task_planner_node/confirm_path" to="path_planner_node/confirm"/>
+            <remap from="task_planner_node/confirm_path" to="path_planner_node/confirm"/>
             <remap from="task_planner_node/confirm_move" to="move_planner_node/confirm"/>
             <remap from="task_planner_node/finish_move" to="move_planner_node/finish"/>
             <remap from="task_planner_node/finish_path" to="path_planner_node/reach_dest"/>
@@ -132,6 +136,37 @@
 
 	<!-- End Wheels -->
 
+    <!-- Start FSM -->
+	<group if="$(arg fsm)">
+		<!-- FSM -->
+		<!-- no remapping for FSM - full topic names specified in params yaml -->
+		<!--
+		<include file="$(find fsm)/launch/fsm_node.launch">
+			<arg name="veh" value="$(arg veh)"/>        
+			<arg name="config" value="$(arg config)"/>        
+			<arg name="param_file_name" value="$(arg fsm_file_name)"/>        
+		</include>
+		-->
+
+		<!-- car_cmd_switch_node -->
+		<!-- no remappings for car_cmd_switch - full topic names specified in params yaml -->
+		<remap from="car_cmd_switch_node/cmd_lane_following" to="lane_controller_node/lane_control"/> 
+		<!-- need either lots more of these or none of these -->
+		<include file="$(find dagu_car)/launch/car_cmd_switch_node.launch">
+			<arg name="veh" value="$(arg veh)"/>
+			<arg name="config" value="$(arg config)"/>
+			<arg name="param_file_name" value="$(arg param_file_name)"/>
+		</include>
+
+		<include file="$(find fsm)/launch/logic_gate_node.launch">
+			<arg name="veh" value="$(arg veh)"/>
+			<arg name="config" value="$(arg config)"/>
+			<arg name="param_file_name" value="$(arg param_file_name)"/>
+		</include>
+	</group>
+
+	<!--End FSM -->
+
 	<!-- Start Joystick -->
 	<group if="$(arg joystick)">
 		<!-- joy -->
@@ -207,6 +242,7 @@
 		<!-- Lane controller -->
 		<group if="$(arg /lane_following/lane_controller)">
 			<remap from="lane_controller_node/lane_pose" to="lane_filter_node/lane_pose"/>
+			<remap from="lane_controller_node/speed" to="path_planner_node/goal"/>
 			<include file="$(find lane_control)/launch/lane_controller_node.launch">
 				<arg name="veh" value="$(arg veh)"/>
 				<arg name="config" value="$(arg config)"/>

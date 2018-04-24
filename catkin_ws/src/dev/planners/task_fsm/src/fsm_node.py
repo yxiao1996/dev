@@ -29,7 +29,7 @@ class FSM(object):
         self.state_msg.state = rospy.get_param("~initial_state", "")
         self.state_msg.header.stamp = rospy.Time.now()
         # Setup publishers
-        self.pub_state = rospy.Publisher("~state",FSMState, queue_size=1)
+        self.pub_state = rospy.Publisher("~mode",FSMState, queue_size=1, latch=True)
 
         # Construct publishers
         self.pub_dict = dict()

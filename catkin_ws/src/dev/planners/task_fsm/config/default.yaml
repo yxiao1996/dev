@@ -54,19 +54,19 @@ states:
       - apriltag_node
   PLANNING:
     transitions:
-      planning_complete: "LINE_FOLLOWING"
+      planning_complete: "LANE_FOLLOWING"
     active_nodes:
       - task_planner_node
       #- move_planner_node
       #- path_planner_node
-  LINE_FOLLOWING:
+  LANE_FOLLOWING:
     transitions:
       reach_dest: "AT_GOAL"
     active_nodes:
-    - ccd_filter_node
-    - ccd_control_node
-    - odo_control_node
-    - path_planner_node
+      - lane_filter_node
+      - line_detector_node
+      - stop_line_filter_node
+      - path_planner_node
   AT_GOAL:
     transitions:
       task_finish: "PLANNING"

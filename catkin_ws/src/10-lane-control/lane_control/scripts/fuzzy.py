@@ -38,9 +38,9 @@ class FuzzyControl():
         out_omega['ze'] = fuzzy.trimf(out_omega.universe, [-0.2, 0.0, 0.2])
         out_omega['ps'] = fuzzy.trimf(out_omega.universe, [0.1, 0.2, 0.4])
         out_omega['pb'] = 1.0 - fuzzy.zmf(out_omega.universe, 0.3, 0.4)
-        out_v['ps'] = fuzzy.trimf(out_omega.universe, [0.1, 0.2, 0.3])
-        out_v['pb'] = 1.0 - fuzzy.zmf(out_omega.universe, 0.2, 0.4)
-        out_v['ze'] = fuzzy.zmf(out_v.universe, 0.1, 0.2)
+        out_v['ps'] = fuzzy.trimf(out_v.universe, [0.3, 0.4, 0.5])
+        out_v['pb'] = 1.0 - fuzzy.zmf(out_v.universe, 0.4, 0.5)
+        out_v['ze'] = fuzzy.zmf(out_v.universe, 0.3, 0.4)
         # Define rules
         # Rule 0: when perfectly in lane, run straight as high speed
         rule0 = ctrl.Rule(antecedent=((lane_error['ze'] & head_error['ze'])),

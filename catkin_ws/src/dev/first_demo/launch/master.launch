@@ -11,9 +11,9 @@
 	
 	<!-- start switch args -->
 	<arg name="camera" default="true"/>
-	<arg name="/camera/raw" default="false"/>
+	<arg name="/camera/raw" default="true"/>
 	<arg name="/camera/cam_info" default="true"/>
-	<arg name="/camera/raw/rect" default="false"/>
+	<arg name="/camera/raw/rect" default="true"/>
 	<arg name="/camera/local" default="false" />
 
 	<arg name="wheels" default="true"/>
@@ -50,7 +50,7 @@
         </node>
 
         <node ns="$(arg veh)" pkg="path_planner" type="path_planner_node.py" name="path_planner_node" output="screen">
-            <remap from="path_planner_node/reach_goal" to="odo_control_node/reach_goal"/>
+            <remap from="path_planner_node/reach_goal" to="stop_line_filter_node/at_stop_line"/>
             <remap from="path_planner_node/set_path" to="task_planner_node/set_path"/>
         </node>
 

@@ -78,6 +78,10 @@ class task_planner_node(object):
                 self.current_task = self.current_macro_task.pop()
             except:
                 # Or its the last task
+                self.macro_task_index = 0
+                self.macro_tasks = rospy.get_param("~macro_tasks")
+                self.current_macro_task = self.macro_tasks[str('macro_task_' + str(self.macro_task_index))][:]
+                self.current_task = self.current_macro_task.pop()
                 return
         else:
             # else continue precious macro task

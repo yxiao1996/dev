@@ -1,6 +1,6 @@
 # Initial state of the FSM
 initial_state: "JOYSTICK_CONTROL"
-
+#initial_state: "PLANNING"
 events:
   joystick_override_on: 
     topic: "joy_mapper_node/joystick_override"

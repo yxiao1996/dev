@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import rospy
+import numpy as np
 from sensor_msgs.msg import CompressedImage,Image  # @UnresolvedImport
 from duckietown_msgs.msg import AntiInstagramHealth, BoolStamped, AntiInstagramTransform  # @UnresolvedImport
 from anti_instagram.AntiInstagram import *
@@ -26,6 +27,7 @@ class AntiInstagramNode():
         self.sub_image = rospy.Subscriber("~uncorrected_image", CompressedImage, self.cbNewImage,queue_size=1)
         self.sub_click = rospy.Subscriber("~click", BoolStamped, self.cbClick, queue_size=1)
 
+        self.trans_timer = rospy.Timer(rospy.Duration.from_sec(20), self.cbPubTrans, True)
         # Verbose option
         self.verbose = rospy.get_param('line_detector_node/verbose',True)
         
@@ -35,6 +37,8 @@ class AntiInstagramNode():
         # Initialize transform message
         self.transform = AntiInstagramTransform()
         # FIXME: read default from configuration and publish it
+        self.ai_scale = np.array([2.2728408473337893, 2.2728273205024614, 2.272844346401005])
+        self.ai_shift = np.array([21.47181119272393, 37.14653160247276, 4.089311860796786])
         
         self.ai = AntiInstagram()
         self.corrected_image = Image()
@@ -42,6 +46,13 @@ class AntiInstagramNode():
         
         self.image_msg = None
         self.click_on = False
+
+    def cbPubTrans(self, _):
+        self.transform.s[0], self.transform.s[1], self.transform.s[2] = self.ai_shift
+        self.transform.s[3], self.transform.s[4], self.transform.s[5] = self.ai_scale
+            
+        self.pub_transform.publish(self.transform)
+        rospy.loginfo('ai: Color transform published.')
 
     def cbNewImage(self,image_msg):
         # memorize image
@@ -117,6 +128,8 @@ class AntiInstagramNode():
             self.transform.s[0], self.transform.s[1], self.transform.s[2] = self.ai.shift
             self.transform.s[3], self.transform.s[4], self.transform.s[5] = self.ai.scale
             
+            rospy.set_param('antiins_shift', self.ai.shift.tolist())
+            rospy.set_param('antiins_scale', self.ai.scale.tolist())            
             self.pub_health.publish(self.health)
             self.pub_transform.publish(self.transform)
             rospy.loginfo('ai: Color transform published.')

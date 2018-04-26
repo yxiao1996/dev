@@ -272,7 +272,7 @@ class lane_controller(object):
         car_control_msg = Twist2DStamped()
         car_control_msg.header = lane_pose_msg.header
         car_control_msg.v = ctl_v*0.7*self.speed_v
-        car_control_msg.omega = ctl_omega*2.5*self.speed_omega
+        car_control_msg.omega = ctl_omega*2.0*self.speed_omega
         self.publishCmd(car_control_msg)
 
         # Update timestamp buffer

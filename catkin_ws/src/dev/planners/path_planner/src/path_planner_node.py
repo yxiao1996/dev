@@ -14,7 +14,7 @@ class PathPlanner(object):
         self.fsm_state = "JOYSTICK_CONTROL"
 
         # Path buffer
-        self.path = [(0.0, 0.0, 0.0), (1000.0, 0.0, 0.0), (1000.0, 1000.0, 0.0), (0.0, 1000.0, 0.0)]
+        self.path = [(0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0)]
         self.goal = self.path.pop()
 
         self.Rate = rospy.Rate(0.5)

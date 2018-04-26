@@ -45,6 +45,10 @@ def calculate_transform(image):
     
     eps = np.finfo('double').eps
     health = 1.0 / (cost + eps)
+
+    np.save('./scale.npy', scale)
+    np.save('./shift.npy', shift)
+    print "parameter saved"
     
     parameters = dict(scale=scale, shift=shift)
     

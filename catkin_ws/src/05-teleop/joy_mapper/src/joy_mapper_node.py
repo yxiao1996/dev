@@ -4,6 +4,7 @@ import math
 
 from duckietown_msgs.msg import Twist2DStamped, BoolStamped
 from sensor_msgs.msg import Joy
+from geometry_msgs.msg import Twist
 
 from __builtin__ import True
 
@@ -33,6 +34,7 @@ class JoyMapper(object):
 
         # Subscriptions
         self.sub_joy_ = rospy.Subscriber("joy", Joy, self.cbJoy, queue_size=1)
+        self.sub_android = rospy.Subscriber("/virtual_joystick/cmd_vel", Twist, self.cbVirtJoy, queue_size=1)
 
         # timer
         # self.pub_timer = rospy.Timer(rospy.Duration.from_sec(self.pub_timestep),self.publishControl)
@@ -57,6 +59,21 @@ class JoyMapper(object):
         rospy.loginfo("[%s] %s = %s " %(self.node_name,param_name,value))
         return value
 
+    def cbVirtJoy(self, msg):
+        print "*"
+        car_cmd_msg = Twist2DStamped()
+        car_cmd_msg.header.stamp = rospy.Time.now()
+        car_cmd_msg.v = msg.linear.x* self.v_gain
+        if self.bicycle_kinematics:
+            # Implements Bicycle Kinematics - Nonholonomic Kinematics
+            # see https://inst.eecs.berkeley.edu/~ee192/sp13/pdf/steer-control.pdf
+            steering_angle = msg.angular.z * self.steer_angle_gain
+            car_cmd_msg.omega = car_cmd_msg.v / self.simulated_vehicle_length * math.tan(steering_angle)
+        else:
+            # Holonomic Kinematics for Normal Driving
+            car_cmd_msg.omega = msg.angular.z  * self.omega_gain
+        self.pub_car_cmd.publish(car_cmd_msg)
+    
     def cbJoy(self, joy_msg):
         self.joy = joy_msg
         self.publishControl()

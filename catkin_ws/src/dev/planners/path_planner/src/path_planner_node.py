@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from std_msgs.msg import String #Imports msg
-from robocon_msgs.msg import BoolStamped, Pose2DStamped, Pose2DList, FSMState
+from duckietown_msgs.msg import BoolStamped, Pose2DStamped, Pose2DList, FSMState
 
 class PathPlanner(object):
     def __init__(self):
@@ -27,6 +27,7 @@ class PathPlanner(object):
         self.sub_reach_goal = rospy.Subscriber("~reach_goal", BoolStamped, self.cbNextGoal)
         self.sub_set_path = rospy.Subscriber("~set_path", Pose2DList, self.cbSetPath)
         self.sub_switch = rospy.Subscriber("~switch", BoolStamped, self.cbSwitch)
+        self.sub_fsm_state = rospy.Subscriber("fsm_node/mode",FSMState,self.cbFSMState)
         # Read parameters
         self.pub_timestep = self.setupParameter("~pub_timestep",0.5)
         # Create a timer that calls the cbTimer function every 1.0 second
@@ -40,6 +41,9 @@ class PathPlanner(object):
         rospy.loginfo("[%s] %s = %s " %(self.node_name,param_name,value))
         return value
 
+    def cbFSMState(self,fsm_state_msg):
+        self.fsm_state = fsm_state_msg.state
+        
     def cbSwitch(self, msg):
         self.active = msg.data
         goal_msg = Pose2DStamped()
@@ -67,6 +71,8 @@ class PathPlanner(object):
 
     def cbNextGoal(self,msg):
         if not msg.data:
+            return
+        if self.fsm_state != "LANE_FOLLOWING":
             return
         # Pop next goal on path
         try:

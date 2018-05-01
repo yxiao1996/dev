@@ -64,7 +64,7 @@ add_message_files(
   ObstacleImageDetectionList.msg
   ObstacleProjectedDetection.msg
   ObstacleProjectedDetectionList.msg
-
+  Pose2DList.msg
 )
 
 ## Generate services in the 'srv' folder

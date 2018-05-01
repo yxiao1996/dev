@@ -60,7 +60,6 @@ class JoyMapper(object):
         return value
 
     def cbVirtJoy(self, msg):
-        print "*"
         car_cmd_msg = Twist2DStamped()
         car_cmd_msg.header.stamp = rospy.Time.now()
         car_cmd_msg.v = msg.linear.x* self.v_gain

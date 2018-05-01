@@ -14,6 +14,7 @@ class apriltag_node(object):
         self.node_name = "apriltag_node"
 
         self.active = True
+        self.tag_only = True
 
         self.listener = tf.TransformListener()
         self.broadcaster = tf.TransformBroadcaster()
@@ -57,7 +58,9 @@ class apriltag_node(object):
          # Load tag detections message
         for detection in msg.detections:
             tag_id = int(detection.id)
-
+            if self.tag_only:
+                self.checkProtocol(tag_id)
+                return
             # Define the transforms
             veh_t_camxout = tr.translation_matrix((self.camera_x, self.camera_y, self.camera_z))
             veh_R_camxout = tr.euler_matrix(0, self.camera_theta*np.pi/180, 0, 'rxyz')

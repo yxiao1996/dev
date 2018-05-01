@@ -3,7 +3,7 @@ import rospy
 import copy
 #from pkg_name.util import HelloGoodbye #Imports module. Not limited to modules in this pkg. 
 from std_msgs.msg import String #Imports msg
-from robocon_msgs.msg import FSMState, BoolStamped
+from duckietown_msgs.msg import FSMState, BoolStamped
 
 class FSM(object):
     def __init__(self):

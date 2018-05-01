@@ -34,6 +34,7 @@
 
 	<arg name="fsm" default="true"/>
 	<arg name="planner" default="true"/>
+    <arg name="apriltag" default="true"/>
 
 	<!-- Start finite state machine -->
     <group if="$(arg fsm)">    
@@ -49,6 +50,7 @@
             <remap from="task_planner_node/confirm_move" to="move_planner_node/confirm"/>
             <remap from="task_planner_node/finish_move" to="move_planner_node/finish"/>
             <remap from="task_planner_node/finish_path" to="path_planner_node/reach_dest"/>
+            <remap from="task_planner_node/finish_coord" to="apriltag_node/coord"/>
         </node>
 
         <node ns="$(arg veh)" pkg="path_planner" type="path_planner_node.py" name="path_planner_node" output="screen">
@@ -270,4 +272,39 @@
       </include>
     </group>
 	<!-- End anti-instagram -->
+
+    <!-- Start Apriltag-->
+    <group if="$(arg apriltag)">
+    <node ns="$(arg veh)" pkg="apriltags_ros" type="apriltag_detector_node" name="apriltag_detector" output="screen">
+    <!-- Remap topic required by the node to custom topics -->
+    <remap from="image_rect" to="camera_node/image/rect" />
+    <remap from="camera_node/image/camera_info" to="camera_node/raw_camera_info" />
+    <remap from="apriltags_detector_node/image_raw" to="camera_node/image/rect"/>
+	<remap from="apriltags_detector_node/camera_info" to="camera_node/raw_camera_info"/>
+    <remap from="switch" to="apriltag_detector/switch"/>
+
+    <!-- Optional: Subscribe to the compressed stream-->
+    <!--<param name="image_transport" type="str" value="compressed" />-->
+
+    <!-- Select the tag family: 16h5, 25h7, 25h9, 36h9, or 36h11(default) -->
+    <param name="tag_family" type="str" value="36h11" />
+
+    <!-- Enable projected optical measurements for more accurate tag transformations -->
+    <!-- This exists for backwards compatability and should be left true for new setups -->
+    <param name="projected_optics" type="bool" value="true" />
+
+    <!-- Describe the tags -->
+    <rosparam param="tag_descriptions">[
+      {id: 0, size: 0.163513},
+      {id: 1, size: 0.163513, frame_id: a_frame},
+      {id: 2, size: 0.163513, frame_id: tag_2},
+      {id: 3, size: 0.163513},
+      {id: 4, size: 0.163513},
+      {id: 5, size: 0.163513}]
+    </rosparam>
+  </node>
+  <node ns="$(arg veh)" name="apriltag_node" pkg="apriltag_coord" type="apriltag_node.py" output="screen">
+    <remap from="~apriltags_in" to="tag_detections"/>
+  </node>
+    </group>
 </launch>

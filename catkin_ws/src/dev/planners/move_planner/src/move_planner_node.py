@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import rospy
 from std_msgs.msg import String #Imports msg
-from robocon_msgs.msg import BoolStamped, Pose2DStamped, FSMState
+from duckietown_msgs.msg import BoolStamped, Pose2DStamped, FSMState
 
 class MovePlanner(object):
     def __init__(self):
@@ -69,7 +69,7 @@ class MovePlanner(object):
         move_msg.data = self.move
         self.pub_move.publish(move_msg)
         if self.move == 'sleep':
-            rospy.sleep(5)
+            rospy.sleep(0.1)
         rospy.loginfo("[%s] send move: %s" %(self.node_name, self.move))
         # Publish confirm message to task planner
         conf_msg = BoolStamped()

@@ -39,7 +39,7 @@ nodes:
   stop_line_filter_node: "stop_line_filter_node/switch"
   framerate_high: "camera_node/framerate_high_switchs"
   decoder_node: "decoder_node/switch"
-  apriltag_node: "apriltag_detector_node/switch"
+  apriltag_node: "apriltag_detector/switch"
 
 states:
   JOYSTICK_CONTROL:
@@ -49,9 +49,9 @@ states:
       - lane_filter_node
       - line_detector_node
       - stop_line_filter_node
-      - framerate_high
+      #- framerate_high
       - decoder_node
-      - apriltag_node
+      #- apriltag_node
   PLANNING:
     transitions:
       planning_complete: "LANE_FOLLOWING"
@@ -73,3 +73,5 @@ states:
     active_nodes:
     - pid_control_node
     - move_planner_node
+    - decoder_node
+    - apriltag_node

@@ -2,7 +2,7 @@
 import copy
 import rospy
 from std_msgs.msg import String, Float64MultiArray#Imports msg
-from robocon_msgs.msg import BoolStamped, Pose2DList, Pose2DStamped
+from duckietown_msgs.msg import BoolStamped, Pose2DList, Pose2DStamped
 
 class task_planner_node(object):
     def __init__(self):

@@ -148,7 +148,7 @@ class lane_controller(object):
 
         # Subscriptions
         self.sub_lane_reading = rospy.Subscriber("~lane_pose", LanePose, self.cbPose, queue_size=1)
-        self.sub_speed_factor = rospy.Subscriber("~speed", Pose2DStamped, self.cbSpeed, queue_size=1)
+        self.sub_speed_factor = rospy.Subscriber("~speed", Pose2DStamped, self.cbSpeed, queue_size=2)
 
         # safe shutdown
         rospy.on_shutdown(self.custom_shutdown)

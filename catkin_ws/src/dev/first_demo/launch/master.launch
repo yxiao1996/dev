@@ -51,6 +51,7 @@
             <remap from="task_planner_node/finish_move" to="move_planner_node/finish"/>
             <remap from="task_planner_node/finish_path" to="path_planner_node/reach_dest"/>
             <remap from="task_planner_node/finish_coord" to="apriltag_node/coord"/>
+            <remap from="task_planner_node/andoird_switch" to="joy_mapper_node/next_task"/>
         </node>
 
         <node ns="$(arg veh)" pkg="path_planner" type="path_planner_node.py" name="path_planner_node" output="screen">

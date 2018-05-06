@@ -5,10 +5,6 @@ macro_tasks:
         move:
           "sleep"
       - path:
-          - [0.0, 0.0, 0.0]
-        move:
-          "sleep"
-      - path:
           - [1.0, 1.0, 0.0]
         move:
           "sleep"

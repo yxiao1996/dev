@@ -45,6 +45,7 @@ class task_planner_node(object):
         self.sub_finish_path = rospy.Subscriber("~finish_path", BoolStamped, self.cbFinishPath)
         self.sub_finish_move = rospy.Subscriber("~finish_move", BoolStamped, self.cbFinishMove)
         self.sub_coord = rospy.Subscriber("~finish_coord", BoolStamped, self.cbFinishCoord)
+        self.sub_android = rospy.Subscriber("~andoird_switch", BoolStamped, self.cbFinishCoord)
         self.sub_switch = rospy.Subscriber("~switch", BoolStamped, self.cbSwitch)
         # Read parameters
         self.pub_timestep = self.setupParameter("~pub_timestep",1.0)

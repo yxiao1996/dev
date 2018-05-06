@@ -5,6 +5,7 @@ import math
 from duckietown_msgs.msg import Twist2DStamped, BoolStamped
 from sensor_msgs.msg import Joy
 from geometry_msgs.msg import Twist
+from std_msgs.msg import Bool
 
 from __builtin__ import True
 
@@ -31,11 +32,13 @@ class JoyMapper(object):
         self.pub_anti_instagram = rospy.Publisher("anti_instagram_node/click",BoolStamped, queue_size=1)
         self.pub_e_stop = rospy.Publisher("wheels_driver_node/emergency_stop",BoolStamped,queue_size=1)
         self.pub_avoidance = rospy.Publisher("~start_avoidance",BoolStamped,queue_size=1)
+        self.pub_next_task = rospy.Publisher("~next_task",BoolStamped,queue_size=1)
 
         # Subscriptions
         self.sub_joy_ = rospy.Subscriber("joy", Joy, self.cbJoy, queue_size=1)
         self.sub_android = rospy.Subscriber("/virtual_joystick/cmd_vel", Twist, self.cbVirtJoy, queue_size=1)
-
+        self.sub_android_switch = rospy.Subscriber("/android/switch", Bool, self.cbAndSwitch)
+        self.sub_andoird_siwtch2 = rospy.Subscriber("/android/next_task", Bool, self.cbAndNext)
         # timer
         # self.pub_timer = rospy.Timer(rospy.Duration.from_sec(self.pub_timestep),self.publishControl)
         self.param_timer = rospy.Timer(rospy.Duration.from_sec(1.0),self.cbParamTimer)
@@ -58,6 +61,30 @@ class JoyMapper(object):
         rospy.set_param(param_name,value) #Write to parameter server for transparancy
         rospy.loginfo("[%s] %s = %s " %(self.node_name,param_name,value))
         return value
+
+    def cbAndSwitch(self, msg):
+        if msg.data == False: #The back button
+            override_msg = BoolStamped()
+            override_msg.header.stamp = rospy.Time.now()
+            override_msg.data = True
+            rospy.loginfo('override_msg = True')
+            self.pub_joy_override.publish(override_msg)
+            
+        elif msg.data == True: #the start button
+            override_msg = BoolStamped()
+            override_msg.header.stamp = rospy.Time.now()
+            override_msg.data = False
+            rospy.loginfo('override_msg = False')
+            self.pub_joy_override.publish(override_msg)
+
+    def cbAndNext(self, msg):
+        next_msg = BoolStamped()
+        next_msg.header.stamp = rospy.Time.now()
+        if msg.data == True:
+            next_msg.data = True
+        else:
+            next_msg.data = False
+        self.pub_next_task.publish(next_msg)
 
     def cbVirtJoy(self, msg):
         car_cmd_msg = Twist2DStamped()

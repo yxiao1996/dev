@@ -246,6 +246,7 @@
 
 		<!-- Lane controller -->
 		<group if="$(arg /lane_following/lane_controller)">
+            <remap from="~apriltags_in" to="tag_detections"/>
 			<remap from="lane_controller_node/lane_pose" to="lane_filter_node/lane_pose"/>
 			<remap from="lane_controller_node/speed" to="path_planner_node/goal"/>
 			<include file="$(find lane_control)/launch/lane_controller_node.launch">

@@ -2,6 +2,7 @@
 import rospy
 from std_msgs.msg import String #Imports msg
 from duckietown_msgs.msg import BoolStamped, Pose2DStamped, FSMState
+from std_srvs.srv import EmptyRequest, EmptyResponse, Empty
 
 class MovePlanner(object):
     def __init__(self):
@@ -28,6 +29,12 @@ class MovePlanner(object):
         self.sub_at_goal = rospy.Subscriber("~switch", BoolStamped, self.cbSwitch)
         self.sub_set_move = rospy.Subscriber("~set_move", String, self.cbSetMove)
         self.sub_fsm_state = rospy.Subscriber("/Robo/fsm_node/state", FSMState, self.cbState)
+
+        # Setup service
+        self.forward = rospy.ServiceProxy('/duckiebot0/lane_controller_node/turn_forward', Empty)
+        self.backward = rospy.ServiceProxy('/duckiebot0/lane_controller_node/turn_backward', Empty)
+        self.left = rospy.ServiceProxy('/duckiebot0/lane_controller_node/turn_left', Empty)
+        self.right = rospy.ServiceProxy('/duckiebot0/lane_controller_node/turn_right', Empty)
 
         # Read parameters
         self.pub_timestep = self.setupParameter("~pub_timestep",0.5)
@@ -70,6 +77,17 @@ class MovePlanner(object):
         self.pub_move.publish(move_msg)
         if self.move == 'sleep':
             rospy.sleep(0.1)
+        if self.move == 'backward':
+            self.backward()
+        if self.move == 'push':
+            self.forward()
+            self.backward()
+            rospy.sleep(0.1)
+        if self.move == 'knock':
+            self.forward()
+            self.left()
+            self.right()
+            self.backward()
         rospy.loginfo("[%s] send move: %s" %(self.node_name, self.move))
         # Publish confirm message to task planner
         conf_msg = BoolStamped()

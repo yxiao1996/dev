@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 import rospy
 import math
-from duckietown_msgs.msg import Twist2DStamped, LanePose, Pose2DStamped
+from duckietown_msgs.msg import Twist2DStamped, LanePose, Pose2DStamped,  BoolStamped, AprilTagDetectionArray
 from geometry_msgs.msg import Pose2D
 import skfuzzy as fuzzy
 import skfuzzy.control as ctrl
 import numpy as np
 from fuzzy import FuzzyControl
+import copy
+from std_srvs.srv import EmptyRequest, EmptyResponse, Empty
 
 class lane_controller(object):
     """fuzzy control version of lane controller"""
@@ -20,122 +22,46 @@ class lane_controller(object):
         self.last_timestamp = 0
         self.speed_v = 1.0
         self.speed_omega = 1.0
-
         self.omega_bar = 0.2
-        # Initialize sparse universe
-        universe = np.linspace(-2, 2, 40)
+        self.april_factor = 1.0
 
-        # Create fuzzy variables
-        lane_error = ctrl.Antecedent(universe, 'lane_error')
-        head_error = ctrl.Antecedent(universe, 'head_error')
-        out_v = ctrl.Consequent(np.linspace(0, 1, 40), 'out_v')
-        out_omega = ctrl.Consequent(universe, 'out_omega')
+        self.param_list = {
+                       "turn_left":[ #time, velocity, angular vel
+                       [0.8, 0.0, 0],
+                       [1.8, 0.0, 2.896],
+                       [0.8, 0.0, 0.0]
+                       ],
+                       "turn_right":[
+                        [0.8, 0.0, 0],
+                        [1.8, 0.0, -2.896],
+                        [0.8, 0.0, 0.0]
+                        ],
+                        "turn_forward":[
+                        [0.8, 0.43, 0.4],
+                        [1.0, 0.43, 0.0],
+                        [1.0, 0.0, 0.0],
+                        [0.5, 0.0, 0.0]
+                        ],
+                        "turn_backward":[
+                        [0.8, -0.43, 0.4],
+                        [1.0, -0.43, 0.0],
+                        [1.0, 0.0, 0.0],
+                        [0.5, 0.0, 0.0]
+                        ]
+                }
+        self.maneuvers = dict()
 
-        # Generate membership function automatically
-        names = ['nb', 'ns', 'ze', 'ps', 'pb']
-        #lane_error.automf(names=names)
-        #head_error.automf(names=names)
-        #out_v.automf(names=names)
-        #out_omega.automf(names=names)
+        self.maneuvers[0] = self.getManeuver("turn_left")
+        self.maneuvers[1] = self.getManeuver("turn_forward")
+        self.maneuvers[2] = self.getManeuver("turn_right")
+        self.maneuvers[3] = self.getManeuver("turn_backward")
 
-        # Input membership
-        lane_error['nb'] = fuzzy.zmf(lane_error.universe, -0.3, -0.1)
-        lane_error['ns'] = fuzzy.trimf(lane_error.universe, [-0.2, -0.1, 0.0])
-        lane_error['ze'] = fuzzy.trimf(lane_error.universe, [-0.1, 0.0, 0.1])
-        lane_error['ps'] = fuzzy.trimf(lane_error.universe, [0.0, 0.1, 0.2])
-        lane_error['pb'] = 1.0 - fuzzy.zmf(lane_error.universe, 0.1, 0.3)
-        head_error['nb'] = fuzzy.zmf(head_error.universe, -0.7, -0.3)
-        head_error['ns'] = fuzzy.trimf(head_error.universe, [-0.4, -0.25, -0.1])
-        head_error['ze'] = fuzzy.trimf(head_error.universe, [-0.2, 0.0, 0.2])
-        head_error['ps'] = fuzzy.trimf(head_error.universe, [0.1, 0.25, 0.4])
-        head_error['pb'] = 1.0 - fuzzy.zmf(head_error.universe, 0.3, 0.7)
-
-        # Output membership
-        out_omega['nb'] = fuzzy.zmf(out_omega.universe, -0.7, -0.3)
-        out_omega['ns'] = fuzzy.trimf(out_omega.universe, [-0.4, -0.25, -0.1])
-        out_omega['ze'] = fuzzy.trimf(out_omega.universe, [-0.2, 0.0, 0.2])
-        out_omega['ps'] = fuzzy.trimf(out_omega.universe, [0.1, 0.25, 0.4])
-        out_omega['pb'] = 1.0 - fuzzy.zmf(out_omega.universe, 0.3, 0.7)
+        self.srv_stop = rospy.Service("~stop", Empty, self.cbSrvStop)
+        self.srv_turn_left = rospy.Service("~turn_left", Empty, self.cbSrvLeft)
+        self.srv_turn_right = rospy.Service("~turn_right", Empty, self.cbSrvRight)
+        self.srv_turn_forward = rospy.Service("~turn_forward", Empty, self.cbSrvForward)
+        self.srv_turn_backward = rospy.Service("~turn_backward", Empty, self.cbSrvBackward)
         
-        out_v['ps'] = fuzzy.zmf(out_omega.universe, 0.1, 0.4)
-        out_v['pb'] = 1.0 - fuzzy.zmf(out_omega.universe, 0.3, 0.5)
-
-        # Define rules
-        # Rule 0: when perfectly in lane, run straight as high speed
-        rule0 = ctrl.Rule(antecedent=((lane_error['ze'] & head_error['ze'])),
-                          consequent=(out_v['pb']),
-                          label='rule_0')
-        rule1 = ctrl.Rule(antecedent=((lane_error['ze'] & head_error['ze'])),
-                          consequent=(out_omega['ze']),
-                          label='rule_1')
-        
-        # Rule 1: when slight heading error, adjust head slightly
-        rule2 = ctrl.Rule(antecedent=((lane_error['ns'] & head_error['ns']) |
-                                      (lane_error['ps'] & head_error['ns']) |
-                                      (lane_error['nb'] & head_error['ns']) |
-                                      (lane_error['pb'] & head_error['ns']) |
-                                      (lane_error['ze'] & head_error['ns']) |
-                                      (lane_error['ns'] & head_error['nb']) |
-                                      (lane_error['ps'] & head_error['nb']) |
-                                      (lane_error['nb'] & head_error['nb']) |
-                                      (lane_error['pb'] & head_error['nb']) |
-                                      (lane_error['ze'] & head_error['nb']) |
-                                      (lane_error['ns'] & head_error['ps']) |
-                                      (lane_error['ps'] & head_error['ps']) |
-                                      (lane_error['nb'] & head_error['ps']) |
-                                      (lane_error['pb'] & head_error['ps']) |
-                                      (lane_error['ze'] & head_error['ps']) |
-                                      (lane_error['ns'] & head_error['pb']) |
-                                      (lane_error['ps'] & head_error['pb']) |
-                                      (lane_error['nb'] & head_error['pb']) |
-                                      (lane_error['pb'] & head_error['pb']) |
-                                      (lane_error['ze'] & head_error['pb']) |
-                                      (lane_error['ns'] & head_error['ze']) |
-                                      (lane_error['ps'] & head_error['ze']) |
-                                      (lane_error['nb'] & head_error['ze']) |
-                                      (lane_error['pb'] & head_error['ze'])),
-                          consequent=(out_v['ps']),
-                          label='rule_2')
-        #rule_v2 = ctrl.Rule(antecedent=((lane_error['ze'] & head_error['ze'])),
-        #                  consequent=(out_v['ze']),
-        #                  label='rule_v2')
-        rule3 = ctrl.Rule(antecedent=((lane_error['ns'] & head_error['ns']) |
-                                      (lane_error['ps'] & head_error['ns']) |
-                                      (lane_error['nb'] & head_error['ns']) |
-                                      (lane_error['pb'] & head_error['ns']) |
-                                      (lane_error['ze'] & head_error['ns']) |
-                                      (lane_error['ns'] & head_error['ze']) |
-                                      (lane_error['nb'] & head_error['ze'])),
-                          consequent=(out_omega['ps']),
-                          label='rule_3')
-        rule4 = ctrl.Rule(antecedent=((lane_error['ns'] & head_error['ps']) |
-                                      (lane_error['ps'] & head_error['ps']) |
-                                      (lane_error['nb'] & head_error['ps']) |
-                                      (lane_error['pb'] & head_error['ps']) |
-                                      (lane_error['ze'] & head_error['ps']) |
-                                      (lane_error['ps'] & head_error['ze']) |
-                                      (lane_error['pb'] & head_error['ze'])),
-                          consequent=(out_omega['ns']),
-                          label='rule_4')
-        
-        # Rule 2: when heading error is big, adjust heading seriously
-        rule5 = ctrl.Rule(antecedent=((lane_error['ns'] & head_error['nb']) |
-                                      (lane_error['ps'] & head_error['nb']) |
-                                      (lane_error['nb'] & head_error['nb']) |
-                                      (lane_error['pb'] & head_error['nb']) |
-                                      (lane_error['ze'] & head_error['nb'])),
-                          consequent=(out_omega['pb']),
-                          label='rule_5')
-        rule6 = ctrl.Rule(antecedent=((lane_error['ns'] & head_error['pb']) |
-                                      (lane_error['ps'] & head_error['pb']) |
-                                      (lane_error['nb'] & head_error['pb']) |
-                                      (lane_error['pb'] & head_error['pb']) |
-                                      (lane_error['ze'] & head_error['pb'])),
-                          consequent=(out_omega['nb']),
-                          label='rule_6')
-
-        self.fuzzy_system = ctrl.ControlSystem(rules=[rule0, rule1, rule2, rule3, rule4, rule5, rule6])
-        #self.sim = ctrl.ControlSystemSimulation(self.fuzzy_system, flush_after_run=1)
         ctl_sys = FuzzyControl()
         self.sim = ctl_sys.get_ctl()
 
@@ -144,12 +70,17 @@ class lane_controller(object):
 
         # Publicaiton
         self.pub_car_cmd = rospy.Publisher("~car_cmd", Twist2DStamped, queue_size=1)
+        self.pub_move_cmd = rospy.Publisher("~move_cmd", Twist2DStamped, queue_size=1)
+        self.pub_done = rospy.Publisher("~move_done",BoolStamped,queue_size=1)
         self.pub_debug = rospy.Publisher("~debug", Pose2D, queue_size=1)
 
         # Subscriptions
         self.sub_lane_reading = rospy.Subscriber("~lane_pose", LanePose, self.cbPose, queue_size=1)
         self.sub_speed_factor = rospy.Subscriber("~speed", Pose2DStamped, self.cbSpeed, queue_size=2)
-
+        #self.sub_mode = rospy.Subscriber("~mode", FSMState, self.cbFSMState, queue_size=1)
+        self.sub_prePros = rospy.Subscriber("~apriltags_in", AprilTagDetectionArray, self.cbApril, queue_size=1)
+        self.rate = rospy.Rate(30)
+        
         # safe shutdown
         rospy.on_shutdown(self.custom_shutdown)
 
@@ -163,6 +94,53 @@ class lane_controller(object):
         rospy.loginfo("[%s] %s = %s " %(self.node_name,param_name,value))
         return value
 
+    #def cbFSMState(self,msg):
+        # self.mode = msg.state
+
+    def getManeuver(self,param_name):
+        param_list = self.param_list[param_name]
+        # rospy.loginfo("PARAM_LIST:%s" %param_list)        
+        maneuver = list()
+        for param in param_list:
+            maneuver.append((param[0],Twist2DStamped(v=param[1],omega=param[2])))
+        # rospy.loginfo("MANEUVER:%s" %maneuver)
+        return maneuver
+
+    def cbApril(self, msg):
+        d = msg.detections
+        if len(d) > 0:
+            print "detect vehicle"
+            self.april_factor = 0.0
+        else:
+            self.april_factor = 1.0
+            
+    def publishDoneMsg(self):
+        msg = BoolStamped()
+        msg.header.stamp = rospy.Time.now()
+        msg.data = True
+        self.pub_done.publish(msg)
+        rospy.loginfo("[%s] move_done!" %(self.node_name))
+
+    def cbSrvStop(self,req):
+        self.trigger(-1)
+        return EmptyResponse()
+
+    def cbSrvLeft(self,req):
+        self.trigger(0)
+        return EmptyResponse()
+    
+    def cbSrvForward(self,req):
+        self.trigger(1)
+        return EmptyResponse()
+
+    def cbSrvBackward(self,req):
+        self.trigger(3)
+        return EmptyResponse()    
+    
+    def cbSrvRight(self,req):
+        self.trigger(2)
+        return EmptyResponse()
+    
     def cbSpeed(self, msg):
         self.speed_v = msg.x
         self.speed_omega = msg.y
@@ -261,18 +239,21 @@ class lane_controller(object):
             cross_track_err = cross_track_err / math.fabs(cross_track_err) * self.d_thres
         #car_control_msg.omega =  self.k_d * cross_track_err + self.k_theta * heading_err #*self.steer_gain #Right stick H-axis. Right is negative
 
-        self.sim.input['lane_error'] = cross_track_err
-        self.sim.input['head_error'] = heading_err
-        self.sim.compute()
-        ctl_omega = self.sim.output['out_omega']
-        ctl_v = self.sim.output['out_v']
+        #self.sim.input['lane_error'] = cross_track_err
+        #self.sim.input['head_error'] = heading_err
+        #self.sim.compute()
+        #ctl_omega = self.sim.output['out_omega']
+        #ctl_v = self.sim.output['out_v']
         #print ctl_v, ctl_omega
 
         # publish car command
         car_control_msg = Twist2DStamped()
         car_control_msg.header = lane_pose_msg.header
-        car_control_msg.v = ctl_v*0.7*self.speed_v
-        car_control_msg.omega = ctl_omega*2.0*self.speed_omega
+        car_control_msg.v = 0.5 * self.april_factor
+        car_control_msg.omega = 0.4*(self.k_d * cross_track_err + self.k_theta * heading_err) * self.april_factor
+        #car_control_msg.v = ctl_v*0.7*self.speed_v
+        #car_control_msg.omega = ctl_omega*2.0*self.speed_omega
+        
         self.publishCmd(car_control_msg)
 
         # Update timestamp buffer
@@ -284,6 +265,34 @@ class lane_controller(object):
         #     self.pub_counter = 1
         #     print "lane_controller publish"
         #     print car_control_msg
+        
+    def trigger(self,turn_type):
+        if turn_type == -1: #Wait. Publish stop command. Does not publish done.
+            cmd = Twist2DStamped(v=0.0,omega=0.0)
+            cmd.header.stamp = rospy.Time.now()
+            self.pub_cmd.publish(cmd)
+            return
+
+        published_already = False
+        for index, pair in enumerate(self.maneuvers[turn_type]):
+            cmd = copy.deepcopy(pair[1])
+            start_time = rospy.Time.now()
+            end_time = start_time + rospy.Duration.from_sec(pair[0])
+            while rospy.Time.now() < end_time:
+                #if not self.mode == "AT_GOAL": # If not in the mode anymore, return
+                    #return
+                cmd.header.stamp = rospy.Time.now()
+                self.pub_move_cmd.publish(cmd)
+                if index > 1:
+                    # See if need to publish interesction_done
+                    if not (published_already):
+                        published_already = True
+                        self.publishDoneMsg()
+                        return
+                self.rate.sleep()
+        # Done with the sequence
+        if not published_already:
+            self.publishDoneMsg()
 
 if __name__ == "__main__":
     rospy.init_node("lane_controller",anonymous=False)

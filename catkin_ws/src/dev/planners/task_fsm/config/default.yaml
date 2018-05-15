@@ -67,6 +67,8 @@ states:
       - line_detector_node
       - stop_line_filter_node
       - path_planner_node
+      - decoder_node
+      - apriltag_node
   AT_GOAL:
     transitions:
       task_finish: "PLANNING"

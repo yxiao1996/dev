@@ -34,10 +34,10 @@ class DecoderNode(object):
             return
         now = rospy.Time.now()
         if now - self.last_stamp < self.publish_duration:
-            return
+           return
         else:
-            self.last_stamp = now
-        # time_start = time.time()
+           self.last_stamp = now
+        #time_start = time.time()
         np_arr = np.fromstring(msg.data, np.uint8)
         cv_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         # time_1 = time.time()

@@ -249,8 +249,8 @@ class lane_controller(object):
         # publish car command
         car_control_msg = Twist2DStamped()
         car_control_msg.header = lane_pose_msg.header
-        car_control_msg.v = 0.5 * self.april_factor
-        car_control_msg.omega = 0.4*(self.k_d * cross_track_err + self.k_theta * heading_err) * self.april_factor
+        car_control_msg.v = 0.35 * self.april_factor
+        car_control_msg.omega = 1.0*(self.k_d * cross_track_err + self.k_theta * heading_err) * self.april_factor
         #car_control_msg.v = ctl_v*0.7*self.speed_v
         #car_control_msg.omega = ctl_omega*2.0*self.speed_omega
         
